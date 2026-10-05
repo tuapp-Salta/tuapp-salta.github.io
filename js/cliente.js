@@ -30,7 +30,18 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', '
 function $vista() { return document.getElementById('vista'); }
 
 function cargando() {
-  $vista().innerHTML = '<div class="cargando"><div class="ruedita" aria-label="Cargando"></div></div>';
+  $vista().innerHTML = '<div class="cargando"><div class="centro"><div class="ruedita" aria-label="Cargando" style="margin:0 auto"></div>' +
+    '<p class="suave" id="cargando-texto" style="margin-top:14px;font-size:.9rem;visibility:hidden">Conectando… la primera vez puede tardar unos segundos.</p></div></div>';
+  setTimeout(function () {
+    const t = document.getElementById('cargando-texto');
+    if (t) t.style.visibility = 'visible';
+  }, 4000);
+}
+
+/** En lugar de dejar la ruedita girando: muestra el error y un botón para reintentar la pantalla. */
+function errorEnPantalla(mensaje, pantalla) {
+  $vista().innerHTML = '<div class="bloque centro" style="margin-top:20px"><p>' + esc(mensaje) + '</p>' +
+    '<button class="btn" data-ir="' + pantalla + '">Reintentar</button></div>';
 }
 
 /** "lun 5 oct · 10:30" a partir de "2026-10-05T10:30:00" */
@@ -239,7 +250,7 @@ const PANTALLAS = {
       if (App.vista === 'tarjeta') dibujarTarjeta();
       if (!App.vistos.tarjeta) { App.vistos.tarjeta = true; evento('vio_tarjeta'); }
     } catch (e) {
-      if (App.vista === 'tarjeta' && !App.tarjeta) $vista().innerHTML = '<div class="bloque centro"><p>' + esc(e.message) + '</p><button class="btn" data-ir="tarjeta">Reintentar</button></div>';
+      if (App.vista === 'tarjeta' && !App.tarjeta) errorEnPantalla(e.message, 'tarjeta');
       else toast(e.message, 'error');
     }
   },
@@ -247,7 +258,7 @@ const PANTALLAS = {
   async qr() {
     if (!App.tarjeta) {
       cargando();
-      try { App.tarjeta = await api('miTarjeta'); } catch (e) { return toast(e.message, 'error'); }
+      try { App.tarjeta = await api('miTarjeta'); } catch (e) { if (App.vista === 'qr') errorEnPantalla(e.message, 'qr'); return; }
     }
     const t = App.tarjeta.tarjeta;
     const q = qrcode(0, 'M');
@@ -266,7 +277,7 @@ const PANTALLAS = {
   async ofertas() {
     cargando();
     let lista;
-    try { lista = await api('ofertasVigentes'); } catch (e) { return toast(e.message, 'error'); }
+    try { lista = await api('ofertasVigentes'); } catch (e) { if (App.vista === 'ofertas') errorEnPantalla(e.message, 'ofertas'); return; }
     if (App.vista !== 'ofertas') return;
     if (!lista.length) {
       $vista().innerHTML = '<h1>Ofertas</h1><div class="bloque centro"><p>Hoy no hay ofertas vigentes.</p><p class="suave">Volvé a mirar pronto: las ofertas cambian según el día y la hora.</p></div>';

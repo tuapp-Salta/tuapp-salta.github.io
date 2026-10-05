@@ -56,16 +56,25 @@ const Sesion = {
 
 class ErrorApi extends Error {}
 
+const ESPERA_MAX_MS = 30000;
+
 async function api(accion, datos) {
   let respuesta;
+  const corte = new AbortController();
+  const reloj = setTimeout(function () { corte.abort(); }, ESPERA_MAX_MS);
   try {
     const r = await fetch(CONFIG.API_URL, {
       method: 'POST',
-      body: JSON.stringify({ accion: accion, token: Sesion.token(), datos: datos || {} })
+      body: JSON.stringify({ accion: accion, token: Sesion.token(), datos: datos || {} }),
+      signal: corte.signal
     });
     respuesta = await r.json();
   } catch (e) {
-    throw new ErrorApi('No hay conexión. Revisá internet y probá de nuevo.');
+    throw new ErrorApi(e.name === 'AbortError'
+      ? 'El servidor está tardando demasiado. Probá de nuevo en un momento.'
+      : 'No hay conexión con el servidor. Revisá internet y probá de nuevo.');
+  } finally {
+    clearTimeout(reloj);
   }
   if (!respuesta.ok) {
     if (respuesta.error === 'SESION_INVALIDA') {
