@@ -1,0 +1,31 @@
+/* Plantilla "cafeteria": estructura cálida, tipografía con serif, sellos redondos.
+   Los colores salen de --c1 / --c2 (marca), definidos por la app. */
+
+body.rubro-cafeteria {
+  --fuente-titulo: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --radio: 18px;
+  background:
+    radial-gradient(circle at 20% -10%, color-mix(in srgb, var(--c2) 70%, #fff) 0, transparent 55%),
+    var(--fondo);
+}
+
+.rubro-cafeteria .tarjeta-sellos {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in srgb, var(--c1) 4%, transparent) 14px 15px),
+    var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--c1) 18%, transparent);
+}
+
+.rubro-cafeteria .casillero {
+  border-radius: 50%;
+}
+
+.rubro-cafeteria .casillero.lleno {
+  animation: sellar .35s ease-out both;
+}
+
+@keyframes sellar {
+  0% { transform: scale(1.6) rotate(-20deg); opacity: 0; }
+  70% { transform: scale(.92) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
