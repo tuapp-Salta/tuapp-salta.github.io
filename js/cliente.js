@@ -172,10 +172,8 @@ const PANTALLAS = {
       '<select id="r-dia" aria-label="Día"><option value="">Día</option>' + dias + '</select>' +
       '<select id="r-mes" aria-label="Mes"><option value="">Mes</option>' + meses + '</select></div>' +
       '<div class="ayuda">Para saludarte en tu día. El año no hace falta.</div></div>' +
-      '<div class="campo"><label for="r-pin">Elegí un PIN de 4 números</label><div class="fila">' +
-      '<input id="r-pin" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••">' +
-      '<input id="r-pin2" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••" aria-label="Repetí el PIN"></div>' +
-      '<div class="ayuda">Lo vas a usar para entrar desde otro celular. Repetilo en el segundo casillero.</div></div>' +
+      '<div class="campo"><label for="r-pin">Elegí un PIN de 4 números</label>' + campoPin('r-pin', 'new-password') +
+      '<div class="ayuda">Solo te lo vamos a pedir si entrás desde otro celular.</div></div>' +
       '<label class="check"><input id="r-terminos" type="checkbox"><span>Acepto los <a href="' + linkLegal('terminos') + '" target="_blank">términos y condiciones</a> y la <a href="' + linkLegal('privacidad') + '" target="_blank">política de privacidad</a>.</span></label>' +
       '<label class="check"><input id="r-promos" type="checkbox"><span>Quiero recibir ofertas y novedades de ' + esc(App.marca.nombre) + '.</span></label>' +
       '<button class="btn" type="submit" style="margin-top:10px">Crear mi tarjeta</button>' +
@@ -191,7 +189,6 @@ const PANTALLAS = {
       else if (tel.length < 8 || tel.length > 13) error = 'Revisá el teléfono: con característica, sin 0 ni 15.';
       else if (!v('r-dia') || !v('r-mes')) error = 'Elegí el día y el mes de tu cumpleaños.';
       else if (!/^\d{4}$/.test(pin)) error = 'El PIN tiene que tener 4 números.';
-      else if (pin !== v('r-pin2')) error = 'Los dos PIN no coinciden.';
       else if (!document.getElementById('r-terminos').checked) error = 'Para registrarte tenés que aceptar los términos y la política de privacidad.';
       if (error) return toast(error, 'error');
 
@@ -226,7 +223,7 @@ const PANTALLAS = {
       '<h1>Ingresá</h1><p class="suave">Con el teléfono y el PIN que elegiste.</p>' +
       '<form id="form-login" class="bloque" novalidate>' +
       '<div class="campo"><label for="l-tel">Teléfono celular</label><input id="l-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="3874123456" value="' + esc(d.telefono || '') + '"></div>' +
-      '<div class="campo"><label for="l-pin">PIN</label><input id="l-pin" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="••••"></div>' +
+      '<div class="campo"><label for="l-pin">PIN</label>' + campoPin('l-pin', 'current-password') + '</div>' +
       '<button class="btn" type="submit">Entrar</button></form>' +
       '<p class="centro suave" style="font-size:.85rem">¿Todavía no tenés cuenta?</p>' +
       '<button class="btn secundario" data-ir="registro">Registrarme</button>' +
@@ -521,6 +518,22 @@ function festejo(titulo, texto) {
   setTimeout(function () { if (f.isConnected) cerrar(); }, 5000);
   document.body.appendChild(f);
 }
+
+/** Casillero de PIN con botón 👁 para mostrarlo mientras se escribe (así no hace falta repetirlo). */
+function campoPin(id, autocompletar) {
+  return '<div class="campo-pin"><input id="' + id + '" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="' + autocompletar + '" placeholder="••••">' +
+    '<button type="button" class="ver-pin" data-ver-pin="' + id + '" aria-label="Mostrar PIN">👁</button></div>';
+}
+
+document.addEventListener('click', function (e) {
+  const b = e.target.closest('[data-ver-pin]');
+  if (!b) return;
+  const input = document.getElementById(b.dataset.verPin);
+  const oculto = input.type === 'password';
+  input.type = oculto ? 'text' : 'password';
+  b.setAttribute('aria-label', oculto ? 'Ocultar PIN' : 'Mostrar PIN');
+  b.classList.toggle('activo', oculto);
+});
 
 function linkLegal(seccion) {
   return 'legales.html?m=' + encodeURIComponent(App.marca ? App.marca.nombre : '') + '#' + seccion;
