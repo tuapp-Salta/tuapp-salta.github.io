@@ -23,7 +23,8 @@ window.PLANTILLAS.cafeteria = {
   textos: {
     titulo_tarjeta: 'Tu tarjeta de cafés',
     sello_singular: 'sello',
-    bienvenida: 'Juntá sellos con cada café y ganá premios.'
+    bienvenida: 'Juntá sellos con cada café y ganá premios.',
+    menu: 'Menú'
   },
   /** Devuelve el HTML del sello según `diseno_sello` (taza / grano / logo). */
   sello(diseno, logoUrl) {

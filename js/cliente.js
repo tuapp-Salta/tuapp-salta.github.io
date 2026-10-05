@@ -12,8 +12,12 @@ const App = {
   tarjeta: null,       // última respuesta de miTarjeta
   vista: null,
   sondeo: null,        // consulta periódica mientras se muestra el QR
-  vistos: {}           // eventos ya registrados en esta apertura
+  vistos: {},          // eventos ya registrados en esta apertura
+  menu: null,          // último menú descargado
+  filtroEtiqueta: ''   // etiqueta elegida en el menú ("sin TACC", "vegano"…)
 };
+
+const PESTANAS = ['tarjeta', 'menu', 'ofertas', 'perfil'];
 
 const SONDEO_MS = 4000;
 const SONDEO_MAX_MS = 3 * 60 * 1000;
@@ -22,12 +26,15 @@ const ICONOS = {
   tarjeta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="8" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/></svg>',
   ofertas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
   perfil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M4 17a3 3 0 0 1 3-3h11M8 8h6M8 11h4"/></svg>',
   qr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h7v-4"/></svg>'
 };
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 function $vista() { return document.getElementById('vista'); }
+
+const formatoPrecio = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 function cargando() {
   $vista().innerHTML = '<div class="cargando"><div class="centro"><div class="ruedita" aria-label="Cargando" style="margin:0 auto"></div>' +
@@ -112,6 +119,8 @@ async function prepararMarca(r) {
   document.getElementById('cabecera').innerHTML =
     '<div class="logo">' + logoHTML() + '</div><div><div class="nombre-marca">' + esc(r.marca.nombre) +
     '</div><div class="sucursal">' + esc(r.sucursal.nombre) + '</div></div>';
+  const pestanaMenu = document.querySelector('#tabs [data-ir=menu] span');
+  if (pestanaMenu) pestanaMenu.textContent = App.plantilla.textos.menu || 'Menú';
   prepararInstalacion(r.marca, App.s, App.plantilla.sello(r.marca.diseno_sello)).catch(function () {});
 }
 
@@ -119,7 +128,8 @@ function irA(nombre, datos) {
   clearInterval(App.sondeo);
   App.sondeo = null;
   App.vista = nombre;
-  const conTabs = ['tarjeta', 'qr', 'ofertas', 'perfil'].indexOf(nombre) >= 0;
+  // El menú también se ve sin cuenta: en ese caso, sin la barra de pestañas.
+  const conTabs = ['tarjeta', 'qr', 'ofertas', 'perfil'].indexOf(nombre) >= 0 || (nombre === 'menu' && !!Sesion.token());
   const tabs = document.getElementById('tabs');
   tabs.hidden = !conTabs;
   tabs.querySelectorAll('button').forEach(function (b) {
@@ -145,6 +155,7 @@ const PANTALLAS = {
       '<div class="acciones">' +
       '<button class="btn" data-ir="registro">Registrarme</button>' +
       '<button class="btn secundario" data-ir="login">Ya tengo cuenta</button>' +
+      '<button class="btn texto" data-ir="menu">' + ICONOS.menu.replace('<svg ', '<svg width="22" height="22" ') + ' Ver el ' + esc((App.plantilla.textos.menu || 'Menú').toLowerCase()) + '</button>' +
       '</div></section>' + pie();
   },
 
@@ -274,6 +285,20 @@ const PANTALLAS = {
     esperarSello();
   },
 
+  async menu() {
+    const titulo = App.plantilla.textos.menu || 'Menú';
+    if (!App.menu) cargando(); else dibujarMenu(titulo);
+    try {
+      App.menu = await api('menu', { id_sucursal: App.s });
+    } catch (e) {
+      if (App.vista === 'menu' && !App.menu) errorEnPantalla(e.message, 'menu');
+      return;
+    }
+    if (App.vista !== 'menu') return;
+    dibujarMenu(titulo);
+    if (!App.vistos.menu) { App.vistos.menu = true; evento('vio_menu'); }
+  },
+
   async ofertas() {
     cargando();
     let lista;
@@ -393,6 +418,61 @@ function dibujarTarjeta() {
   }
 }
 
+function dibujarMenu(titulo) {
+  const cats = App.menu.categorias;
+  const logueado = !!Sesion.token();
+  if (!cats.length) {
+    $vista().innerHTML = '<h1>' + esc(titulo) + '</h1><div class="bloque centro"><p>Todavía no hay productos cargados.</p></div>' +
+      (logueado ? '' : '<button class="btn texto" data-ir="bienvenida">Volver</button>');
+    return;
+  }
+
+  const etiquetas = [];
+  cats.forEach(function (c) { c.items.forEach(function (i) { i.etiquetas.forEach(function (e) {
+    if (etiquetas.indexOf(e) < 0) etiquetas.push(e);
+  }); }); });
+  const filtro = App.filtroEtiqueta;
+  const pasa = function (i) { return !filtro || i.etiquetas.indexOf(filtro) >= 0; };
+
+  const secciones = cats.map(function (c, n) {
+    const items = c.items.filter(pasa);
+    if (!items.length) return '';
+    return '<h2 class="categoria-menu" id="cat-' + n + '">' + esc(c.nombre) + '</h2><div class="bloque" style="padding-top:4px;padding-bottom:4px">' +
+      items.map(function (i) {
+        return '<article class="item-menu' + (i.disponible ? '' : ' agotado') + '">' +
+          (i.imagen_url ? '<img src="' + esc(i.imagen_url) + '" alt="" loading="lazy">' : '') +
+          '<div class="cuerpo"><h3>' + esc(i.nombre) + '</h3>' +
+          (i.descripcion ? '<p>' + esc(i.descripcion) + '</p>' : '') +
+          (i.etiquetas.length ? '<div class="tags">' + i.etiquetas.map(function (e) { return '<span class="tag">' + esc(e) + '</span>'; }).join('') + '</div>' : '') +
+          '</div><div class="precio">' + (i.disponible ? (i.precio != null ? formatoPrecio.format(i.precio) : '') : 'Agotado') + '</div></article>';
+      }).join('') + '</div>';
+  }).join('');
+
+  $vista().innerHTML =
+    (logueado ? '' : '<button class="btn texto" data-ir="bienvenida" style="width:auto;padding-left:0">← Volver</button>') +
+    '<h1>' + esc(titulo) + '</h1>' +
+    '<div class="menu-nav"><div class="chips">' + cats.map(function (c, n) {
+      return c.items.some(pasa) ? '<button class="chip" data-cat="' + n + '">' + esc(c.nombre) + '</button>' : '';
+    }).join('') + '</div>' +
+    (etiquetas.length ? '<div class="chips">' + etiquetas.map(function (e) {
+      return '<button class="chip etiqueta-filtro' + (e === filtro ? ' activo' : '') + '" data-etiqueta="' + esc(e) + '">' + esc(e) + '</button>';
+    }).join('') + '</div>' : '') + '</div>' +
+    (secciones || '<div class="bloque centro"><p>No hay productos con esa etiqueta.</p></div>') +
+    (logueado ? '' : '<div class="menu-cta bloque"><p><strong>¿Venís seguido?</strong><br><span class="suave">Registrate y sumá un sello con cada compra: ' +
+      esc(App.marca.premio_texto) + ' al juntar ' + App.marca.sellos_para_premio + '.</span></p><button class="btn" data-ir="registro">Registrarme</button></div>') +
+    pie();
+
+  $vista().querySelectorAll('[data-cat]').forEach(function (b) {
+    b.onclick = function () { document.getElementById('cat-' + b.dataset.cat).scrollIntoView({ behavior: 'smooth' }); };
+  });
+  $vista().querySelectorAll('[data-etiqueta]').forEach(function (b) {
+    b.onclick = function () {
+      App.filtroEtiqueta = App.filtroEtiqueta === b.dataset.etiqueta ? '' : b.dataset.etiqueta;
+      dibujarMenu(titulo);
+    };
+  });
+}
+
 function avisoInstalarCerrado() {
   try { return localStorage.getItem('tuapp_aviso_instalar') === '1'; } catch (e) { return false; }
 }
@@ -467,8 +547,9 @@ document.addEventListener('click', function (e) {
 
 document.addEventListener('DOMContentLoaded', function () {
   const tabs = document.getElementById('tabs');
-  tabs.querySelector('.interno').innerHTML = ['tarjeta', 'ofertas', 'perfil'].map(function (t) {
-    return '<button data-ir="' + t + '">' + ICONOS[t] + '<span>' + t.charAt(0).toUpperCase() + t.slice(1) + '</span></button>';
+  const nombres = { tarjeta: 'Tarjeta', menu: 'Menú', ofertas: 'Ofertas', perfil: 'Perfil' };
+  tabs.querySelector('.interno').innerHTML = PESTANAS.map(function (t) {
+    return '<button data-ir="' + t + '">' + ICONOS[t] + '<span>' + nombres[t] + '</span></button>';
   }).join('');
   iniciar();
 });

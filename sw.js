@@ -4,7 +4,7 @@
  * internet, usa la copia guardada. Las llamadas al backend (Apps Script) nunca se guardan.
  * Al publicar cambios, subir el número de VERSION para renovar la copia guardada.
  */
-const VERSION = 'tuapp-0.2.1';
+const VERSION = 'tuapp-0.3.0';
 const ARCHIVOS = [
   './', 'index.html', 'legales.html', 'css/base.css',
   'js/config.js', 'js/api.js', 'js/ui.js', 'js/cliente.js', 'js/vendor/qrcode.min.js',

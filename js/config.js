@@ -6,5 +6,5 @@ const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbzxhO9ZxzCXi4_5_kauEevMAvDLoR-URRm7a09S7jUOTfY0pCAV0eILP-7cokou43TzqA/exec',
   PRODUCTO: 'Tuapp',
   PRESTADOR: 'Opuntia Technology',
-  VERSION: '0.2.1'
+  VERSION: '0.3.0'
 };
